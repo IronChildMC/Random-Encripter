@@ -1,0 +1,480 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#090b16">
+<meta name="description" content="RandomEncripter: cifra y descifra mensajes con sustitución de caracteres o AES-GCM.">
+<title>RandomEncripter v3</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg:#090b16; --panel:#111629; --line:#29314b;
+  --text:#f2f5ff; --muted:#9ba7c5;
+  --purple:#a78bfa; --cyan:#67e8f9;
+}
+* { box-sizing:border-box }
+body {
+  margin:0; min-height:100vh; color:var(--text);
+  font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;
+  background:
+    radial-gradient(ellipse at 10% 0%,#32205a70,transparent 40%),
+    radial-gradient(ellipse at 100% 40%,#07598535,transparent 38%),
+    var(--bg);
+}
+header { text-align:center; padding:38px 16px 24px }
+.logo {
+  display:inline-grid; place-items:center; width:65px;height:65px;
+  border:1px solid #8b5cf6;border-radius:20px;
+  background:linear-gradient(135deg,#7c3aed,#0891b2);
+  box-shadow:0 0 35px #8b5cf640;font-size:30px;
+}
+h1 { margin:17px 0 8px;font-size:clamp(27px,5vw,43px);letter-spacing:-1.5px }
+h1 span { color:var(--purple) }
+header p { color:var(--muted);margin:0;line-height:1.7 }
+main { width:min(1050px,94%);margin:auto;padding-bottom:45px }
+.panel {
+  background:#111629eF;border:1px solid var(--line);
+  border-radius:20px;padding:22px;margin:15px 0;
+  box-shadow:0 15px 50px #0002;
+}
+h2 { font-size:17px;margin:0 0 16px }
+label { display:block;color:#cbd5ef;font-size:13px;font-weight:650;margin-bottom:9px }
+textarea,input,select {
+  width:100%;background:#090d1c;border:1px solid #303a57;
+  color:var(--text);border-radius:12px;padding:14px;
+  font:inherit;outline:none;
+}
+textarea { min-height:155px;resize:vertical;line-height:1.65 }
+textarea:focus,input:focus,select:focus { border-color:var(--purple);box-shadow:0 0 0 3px #a78bfa18 }
+input { margin-bottom:14px }
+select { cursor:pointer }
+.grid { display:grid;grid-template-columns:1fr 1fr;gap:18px }
+.field { min-width:0 }
+.row { display:flex;align-items:center;gap:10px;flex-wrap:wrap }
+.modes { display:grid;grid-template-columns:1fr 1fr;gap:10px }
+.mode {
+  padding:15px;border:1px solid var(--line);border-radius:13px;
+  background:#0c1020;cursor:pointer;text-align:left;color:var(--text);
+}
+.mode strong { display:block;margin-bottom:5px }
+.mode small { color:var(--muted);line-height:1.5 }
+.mode.active { border-color:var(--purple);background:#8b5cf61b }
+button {
+  border:1px solid var(--line);background:#202943;color:var(--text);
+  padding:12px 16px;border-radius:11px;font-weight:700;cursor:pointer;
+  transition:transform .15s,border-color .15s;
+}
+button:hover { border-color:var(--cyan);transform:translateY(-1px) }
+button:disabled { opacity:.5;cursor:wait;transform:none }
+.primary {
+  color:#080b18;border:0;
+  background:linear-gradient(100deg,#a78bfa,#67e8f9);
+}
+.actions { display:flex;gap:10px;flex-wrap:wrap;margin-top:14px }
+.output-head { display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px }
+.output-head label { margin:0 }
+.counter { color:var(--muted);font-size:12px }
+.status { min-height:24px;color:var(--cyan);font-size:13px;margin-top:12px;overflow-wrap:anywhere }
+.notice { font-size:13px;line-height:1.7;color:var(--muted) }
+.notice strong { color:var(--text) }
+.hidden { display:none!important }
+.tag { display:inline-block;font-size:11px;border:1px solid #3c4663;padding:4px 8px;border-radius:20px;color:var(--cyan);margin-bottom:12px }
+footer { text-align:center;color:var(--muted);font-size:12px;padding:0 16px 25px }
+@media(max-width:680px) {
+  .grid { grid-template-columns:1fr }
+  .panel { padding:16px }
+  header { padding-top:28px }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">⌘</div>
+  <h1>Random<span>Encripter</span> <small style="font-size:14px;color:#67e8f9">V3</small></h1>
+  <p>Tu mensaje. Tus reglas. Tu cifrado.</p>
+</header>
+
+<main>
+  <section class="panel">
+    <h2>01 / Selecciona el sistema</h2>
+    <div class="modes">
+      <button class="mode active" id="subMode" type="button">
+        <strong>🎭 Sustitución</strong>
+        <small>Estilo Scratch: transforma letras en símbolos. No es cifrado seguro.</small>
+      </button>
+      <button class="mode" id="aesMode" type="button">
+        <strong>🔐 AES-GCM</strong>
+        <small>Cifrado real con contraseña, salt aleatoria y autenticación.</small>
+      </button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>02 / Configuración</h2>
+    <div id="subSettings">
+      <span class="tag">MODO SCRATCH MEJORADO</span>
+      <p class="notice">
+        Se emplea un alfabeto de sustitución fijo para que puedas descifrar
+        los resultados sin perder la correspondencia. Para máxima privacidad,
+        utiliza AES-GCM.
+      </p>
+    </div>
+    <div id="aesSettings" class="hidden">
+      <label for="password">Contraseña de cifrado</label>
+      <input id="password" type="password" autocomplete="new-password"
+        placeholder="Escribe una contraseña larga y única">
+      <label for="iterations">Derivación de clave (PBKDF2)</label>
+      <select id="iterations">
+        <option value="310000">310.000 iteraciones — recomendado</option>
+        <option value="600000">600.000 iteraciones — más lento</option>
+        <option value="1000000">1.000.000 iteraciones — exigente</option>
+      </select>
+      <p class="notice">No guardamos tu contraseña. Si la pierdes, no podremos recuperar el mensaje. Usa una contraseña fuerte y no la reutilices.</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>03 / Tu mensaje</h2>
+    <div class="grid">
+      <div class="field">
+        <label for="source">Texto original o cifrado</label>
+        <textarea id="source" placeholder="Escribe o pega tu mensaje aquí..."></textarea>
+        <div class="row" style="justify-content:space-between;margin-top:9px">
+          <span class="counter" id="sourceCount">0 caracteres</span>
+          <button id="clear" type="button">Limpiar</button>
+        </div>
+      </div>
+      <div class="field">
+        <div class="output-head">
+          <label for="result">Resultado</label>
+          <span class="tag">SALIDA</span>
+        </div>
+        <textarea id="result" readonly placeholder="Aquí aparecerá el resultado..."></textarea>
+        <div class="row" style="justify-content:space-between;margin-top:9px">
+          <span class="counter" id="resultCount">0 caracteres</span>
+          <button id="copy" type="button">Copiar</button>
+        </div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="primary" id="encrypt" type="button">🔒 Encriptar</button>
+      <button id="decrypt" type="button">🔓 Desencriptar</button>
+      <button id="swap" type="button">⇄ Intercambiar textos</button>
+    </div>
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+  </section>
+
+  <section class="panel">
+    <h2>04 / Caracteres compatibles</h2>
+    <p class="notice">
+      Letras españolas, vocales acentuadas, diéresis, mayúsculas, minúsculas,
+      números, espacios, saltos de línea, emojis, signos de puntuación,
+      monedas, símbolos matemáticos y caracteres Unicode.
+    </p>
+    <p class="notice">
+      <strong>Ejemplos:</strong>
+      ñ Ñ á é í ó ú ü ¿ ¡ @ # € £ ¥ % & * + − × ÷ = ≠ ≤ ≥
+      ∑ √ ∞ © ® ™ ★ ♠ ♥ ♦ ☀ ☂
+    </p>
+  </section>
+
+  <section class="panel">
+    <h2>05 / Cómo funciona la seguridad</h2>
+    <p class="notice">
+      <strong>Sustitución:</strong> es reversible, pero cualquiera que conozca
+      el algoritmo puede recuperar el texto. No la uses para contraseñas ni
+      información confidencial.
+    </p>
+    <p class="notice">
+      <strong>AES-GCM:</strong> cifra el texto con AES de 256 bits. PBKDF2
+      deriva la clave de tu contraseña mediante SHA-256. Cada cifrado utiliza
+      un salt y un nonce nuevos; la autenticación detecta contraseñas erróneas
+      o modificaciones del mensaje.
+    </p>
+    <p class="notice">
+      La web no envía los mensajes a un servidor. Aun así, usa un dispositivo
+      de confianza y evita contraseñas débiles. GitHub Pages sirve la página,
+      pero no almacena las claves de cifrado.
+    </p>
+  </section>
+</main>
+<footer>RandomEncripter V3 · HTML + CSS + JavaScript · GitHub Pages</footer>
+
+<script>
+"use strict";
+
+const $ = id => document.getElementById(id);
+const source = $("source");
+const result = $("result");
+const statusBox = $("status");
+
+let mode = "substitution";
+
+/*
+ * Sustitución compatible con la idea de RandomEncripter de Scratch.
+ * La tabla usa un símbolo por cada carácter del alfabeto.
+ * Se mantiene una tabla fija para que el descifrado sea reversible.
+ */
+const plain =
+  "abcdefghijklmnopqrstuvwxyzñ" +
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZÑ" +
+  "0123456789" +
+  " .,¡!¿?():;\"'´áéíóúÁÉÍÓÚüÜ" +
+  "@#$%&*+-=_/\\|~^`<>[]{}€£¥¢§¶•°ªº¬¯±×÷µ©®™✓☠☢☣☮☯♠♣♥♦♪♫☼☾☽☀☁☂∞≈≠≤≥∑∆∏√∫★☆◇◆○●※";
+
+const coded = Array.from(
+  "@#$%&*+-=_/\\|~^`'\"?¿<>[]{}€¥£¢§¶•°ªº¬¯±×÷µ©®™✓☠☢☣☮☯♠♣♥♦♪♫☼☾☽☀☁☂∞≈≠≤≥∑∆∏√∫★☆◇◆○●※"
+);
+
+// Construye una sustitución biyectiva con caracteres que no se repiten.
+const uniquePlain = Array.from(new Set(Array.from(plain)));
+const uniqueCoded = Array.from(new Set(coded));
+const substitutionMap = new Map();
+const reverseMap = new Map();
+
+uniquePlain.forEach((ch, i) => {
+  if (i < uniqueCoded.length) {
+    substitutionMap.set(ch, uniqueCoded[i]);
+    reverseMap.set(uniqueCoded[i], ch);
+  }
+});
+
+function substitutionEncrypt(text) {
+  // Los caracteres que no están en la tabla se representan como
+  // unidades Unicode delimitadas, sin perder ningún carácter original.
+  return Array.from(text).map(ch => {
+    if (substitutionMap.has(ch)) {
+      const symbol = substitutionMap.get(ch);
+      // Formato etiquetado para evitar ambigüedad en la decodificación.
+      return "S" + symbol.codePointAt(0).toString(16).padStart(6, "0");
+    }
+    return "U" + ch.codePointAt(0).toString(16).padStart(6, "0");
+  }).join("");
+}
+
+function substitutionDecrypt(text) {
+  if (!/^(?:[SU][0-9a-fA-F]{6})*$/.test(text)) {
+    throw new Error("El texto no tiene un formato válido de sustitución.");
+  }
+  let out = "";
+  for (let i = 0; i < text.length; i += 7) {
+    const type = text[i];
+    const cp = parseInt(text.slice(i + 1, i + 7), 16);
+    if (!Number.isInteger(cp) || cp > 0x10FFFF ||
+        (cp >= 0xD800 && cp <= 0xDFFF)) {
+      throw new Error("Se encontró un código Unicode inválido.");
+    }
+    const ch = String.fromCodePoint(cp);
+    if (type === "S") {
+      if (!reverseMap.has(ch)) {
+        throw new Error("Este símbolo no pertenece a la tabla actual.");
+      }
+      out += reverseMap.get(ch);
+    } else {
+      out += ch;
+    }
+  }
+  return out;
+}
+
+// Codificación base64 segura para datos binarios grandes.
+function toBase64(bytes) {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+function fromBase64(str) {
+  const binary = atob(str);
+  return Uint8Array.from(binary, c => c.charCodeAt(0));
+}
+function randomBytes(n) {
+  return crypto.getRandomValues(new Uint8Array(n));
+}
+
+async function deriveKey(password, salt, iterations) {
+  const material = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(password),
+    "PBKDF2", false, ["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
+    material,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+async function aesEncrypt(text, password, iterations) {
+  const salt = randomBytes(16);
+  const iv = randomBytes(12);
+  const key = await deriveKey(password, salt, iterations);
+  const encrypted = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv, tagLength: 128 },
+    key, new TextEncoder().encode(text)
+  );
+  const payload = {
+    v: 2,
+    alg: "AES-256-GCM",
+    kdf: "PBKDF2-SHA256",
+    iterations,
+    salt: toBase64(salt),
+    iv: toBase64(iv),
+    data: toBase64(new Uint8Array(encrypted))
+  };
+  return "RNE2:" + toBase64(new TextEncoder().encode(JSON.stringify(payload)));
+}
+
+async function aesDecrypt(text, password) {
+  if (!text.startsWith("RNE2:")) {
+    throw new Error("Formato desconocido. El cifrado AES debe comenzar por RNE2:.");
+  }
+  let payload;
+  try {
+    payload = JSON.parse(
+      new TextDecoder().decode(fromBase64(text.slice(5)))
+    );
+  } catch {
+    throw new Error("El paquete cifrado está dañado o no es válido.");
+  }
+
+  if (payload.v !== 2 || payload.alg !== "AES-256-GCM" ||
+      payload.kdf !== "PBKDF2-SHA256") {
+    throw new Error("Versión o algoritmo de cifrado no compatible.");
+  }
+  if (!Number.isInteger(payload.iterations) ||
+      payload.iterations < 100000 || payload.iterations > 2000000) {
+    throw new Error("Número de iteraciones no válido.");
+  }
+
+  const salt = fromBase64(payload.salt);
+  const iv = fromBase64(payload.iv);
+  const data = fromBase64(payload.data);
+  if (salt.length !== 16 || iv.length !== 12 || data.length < 16) {
+    throw new Error("Los datos del cifrado están incompletos.");
+  }
+
+  const key = await deriveKey(password, salt, payload.iterations);
+  try {
+    const decrypted = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv, tagLength: 128 }, key, data
+    );
+    return new TextDecoder("utf-8", { fatal: true }).decode(decrypted);
+  } catch {
+    throw new Error("No se pudo descifrar. Comprueba la contraseña y el texto.");
+  }
+}
+
+function setStatus(message, error = false) {
+  statusBox.textContent = message;
+  statusBox.style.color = error ? "#fca5a5" : "#67e8f9";
+}
+
+function updateCounts() {
+  $("sourceCount").textContent =
+    `${Array.from(source.value).length} caracteres`;
+  $("resultCount").textContent =
+    `${Array.from(result.value).length} caracteres`;
+}
+
+function selectMode(next) {
+  mode = next;
+  $("subMode").classList.toggle("active", mode === "substitution");
+  $("aesMode").classList.toggle("active", mode === "aes");
+  $("subSettings").classList.toggle("hidden", mode !== "substitution");
+  $("aesSettings").classList.toggle("hidden", mode !== "aes");
+  setStatus(mode === "aes"
+    ? "Modo AES-GCM activado."
+    : "Modo de sustitución activado.");
+}
+
+$("subMode").addEventListener("click", () => selectMode("substitution"));
+$("aesMode").addEventListener("click", () => selectMode("aes"));
+source.addEventListener("input", updateCounts);
+result.addEventListener("input", updateCounts);
+
+async function runAction(action) {
+  const text = source.value;
+  if (!text.length) {
+    setStatus("Escribe o pega un mensaje primero.", true);
+    source.focus();
+    return;
+  }
+
+  const buttons = [$("encrypt"), $("decrypt"), $("swap"), $("copy")];
+  buttons.forEach(b => b.disabled = true);
+  setStatus("Procesando…");
+
+  try {
+    let output;
+    if (mode === "substitution") {
+      output = action === "encrypt"
+        ? substitutionEncrypt(text)
+        : substitutionDecrypt(text);
+    } else {
+      const password = $("password").value;
+      if (!password) {
+        throw new Error("Escribe la contraseña para continuar.");
+      }
+      if (action === "encrypt") {
+        const iterations = Number($("iterations").value);
+        output = await aesEncrypt(text, password, iterations);
+      } else {
+        output = await aesDecrypt(text, password);
+      }
+    }
+    result.value = output;
+    updateCounts();
+    setStatus(action === "encrypt"
+      ? "✓ Mensaje encriptado correctamente."
+      : "✓ Mensaje desencriptado correctamente.");
+  } catch (err) {
+    setStatus(err instanceof Error ? err.message : "Ha ocurrido un error.", true);
+  } finally {
+    buttons.forEach(b => b.disabled = false);
+  }
+}
+
+$("encrypt").addEventListener("click", () => runAction("encrypt"));
+$("decrypt").addEventListener("click", () => runAction("decrypt"));
+
+$("swap").addEventListener("click", () => {
+  const oldSource = source.value;
+  source.value = result.value;
+  result.value = oldSource;
+  updateCounts();
+  setStatus("Textos intercambiados.");
+});
+
+$("clear").addEventListener("click", () => {
+  source.value = "";
+  result.value = "";
+  updateCounts();
+  setStatus("Campos limpiados.");
+  source.focus();
+});
+
+$("copy").addEventListener("click", async () => {
+  if (!result.value) {
+    setStatus("No hay ningún resultado que copiar.", true);
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(result.value);
+    setStatus("✓ Resultado copiado al portapapeles.");
+  } catch {
+    result.focus();
+    result.select();
+    setStatus("No se pudo copiar automáticamente. Selecciona el texto y cópialo.", true);
+  }
+});
+
+updateCounts();
+</script>
+</body>
+</html>
